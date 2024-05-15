@@ -2,12 +2,25 @@
   "name": "@capire/attachments-sample",
   "version": "1.0.0",
   "dependencies": {
-    "@cap-js/attachments": "*",
-    "@capire/incidents": "*",
-    "@sap/cds": "*"
+    "@cap-js/attachments": "git@github.com/cap-js/attachments#deploy",
+    "@capire/incidents": "git@github.com/cap-js/incidents-app",
+    "@sap/cds": "*",
+    "@sap/xssec": "^3",
+    "@sap/cds-hana": "^2"
   },
   "devDependencies": {
     "@cap-js/sqlite": "*"
   },
-  "private": true
+  "private": true,
+  "scripts": {
+    "start": "cds-serve"
+  },
+  "cds": {
+    "requires": {
+      "[production]": {
+        "auth": "xsuaa",
+        "db": "hana"
+      }
+    }
+  }
 }

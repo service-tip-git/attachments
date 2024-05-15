@@ -1,0 +1,115 @@
+_schema-version: '3.1'
+ID: incidents.attachments
+version: 1.0.0
+description: "A simple CAP project."
+parameters:
+  enable-parallel-deployments: true
+build-parameters:
+  before-all:
+    - builder: custom
+      commands:
+        - npx cds build --production
+        - bash build-ui.sh
+modules:
+  - name: attachments-srv
+    type: nodejs
+    path: gen/srv
+    parameters:
+      buildpack: nodejs_buildpack
+      readiness-health-check-type: http
+      readiness-health-check-http-endpoint: /health
+    build-parameters:
+      builder: npm
+    provides:
+      - name: srv-api # required by consumers of CAP services (e.g. approuter)
+        properties:
+          srv-url: ${default-url}
+    requires:
+      - name: attachments-db
+      - name: attachments-auth
+      - name: attachments-s3
+  - name: attachments-db-deployer
+    type: hdb
+    path: gen/db
+    parameters:
+      buildpack: nodejs_buildpack
+    requires:
+      - name: attachments-db
+
+  - name: attachments-ui-resources
+    type: com.sap.application.content
+    path: gen/ui-resources
+    requires:
+      - name: attachments-html5-repo-host
+        parameters:
+          content-target: true
+
+  - name: attachments-destinations
+    type: com.sap.application.content
+    requires:
+      - name: attachments-auth
+        parameters:
+          service-key:
+            name: attachments-auth-key
+      - name: attachments-html5-repo-host
+        parameters:
+          service-key:
+            name: attachments-html5-repo-host-key
+      - name: srv-api
+      - name: attachments-destination
+        parameters:
+          content-target: true
+    parameters:
+      content:
+        instance:
+          destinations:
+            - Authentication: OAuth2UserTokenExchange
+              Name: attachments-srv
+              TokenServiceInstanceName: attachments-auth
+              TokenServiceKeyName: attachments-auth-key
+              URL: '~{srv-api/srv-url}'
+              sap.cloud.service: attachments.mgmt
+            - Name: attachments-html5-repo-host
+              ServiceInstanceName: attachments-html5-repo-host
+              ServiceKeyName: attachments-html5-repo-host-key
+              sap.cloud.service: attachments.mgmt
+            - Authentication: OAuth2UserTokenExchange
+              Name: attachments-auth
+              ServiceInstanceName: attachments-auth
+              ServiceKeyName: attachments-auth-key
+              sap.cloud.service: attachments.mgmt
+          existing_destinations_policy: update
+    build-parameters:
+      no-source: true
+resources:
+  - name: attachments-db
+    type: com.sap.xs.hdi-container
+    parameters:
+      service: hana
+      service-plan: hdi-shared
+  - name: attachments-auth
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: xsuaa
+      service-plan: application
+      path: ./xs-security.json
+      config:
+        xsappname: attachments-${org}-${space}
+        tenant-mode: dedicated
+  - name: attachments-html5-repo-host
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service-plan: app-host
+      service: html5-apps-repo
+  - name: attachments-destination
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: destination
+      service-plan: lite
+      config:
+        HTML5Runtime_enabled: true
+  - name: attachments-s3
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: objectstore
+      service-plan: s3-standard
