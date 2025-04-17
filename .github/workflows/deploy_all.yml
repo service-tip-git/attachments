@@ -68,8 +68,6 @@ jobs:
       - name: Build application for production
         run: cd incidents-app && npx cds build --production
 
-    
-
       - name: Deploy using custom action
         uses: ./.github/actions/deploy
         with:
@@ -95,6 +93,7 @@ jobs:
               body: `🚀 The application has been deployed to Cloud Foundry. You can access it [here](${link}).`
             });
   deploy-mtx:
+    name: Deploy Multitenant App
     needs: deploy-singletenant
     runs-on: ubuntu-latest
     steps:
